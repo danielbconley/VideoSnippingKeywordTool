@@ -8,11 +8,13 @@ import time
 #------------CONFIGURATION-------------#
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 EXCLUDED_CHARACTERS = ",.!?'" # characters excluded from stripped strings
-CHATTER_BUFFER = 10 # determines the amount of words used as a buffer if multiple people are talking at once
-CLIP_START_BUFFER = 2 # used as a buffer to avoid including the keyword in video playback
-CLIP_END_BUFFER = 3 # used as a buffer to avoid including the keyword in video playback
+CHATTER_BUFFER = 5 # determines the amount of words used as a buffer if multiple people are talking at once
+CLIP_START_BUFFER = 1 # used as a buffer to avoid including the keyword in video playback
+CLIP_END_BUFFER = 2 # used as a buffer to avoid including the keyword in video playback
 MEDIA_EXTENSIONS = (".mp4", ".mov", ".m4a", ".mp3", ".mkv") # file types shown in the file selection menu
-model_size = "medium" # select model size - note: larger models are slower but more accurate
+START_PHONETIC_SIMILARITIES = {"sart", "shart", "stark", "star"} # set to handle transcription innacuracies for start
+END_PHONETIC_SIMILARITIES = {"in", "n", "en"} # set to handle transcription innacuracies for end
+model_size = "small" # select model size - note: larger models are slower but more accurate
 model = WhisperModel(model_size, device="cpu", compute_type="int8") # select whether to use cpu or gpu for processing
 #--------------------------------------#
 
@@ -56,11 +58,8 @@ def fileSelect():
         print(f"Please enter a number between 1 and {len(files)}.")
 
 def transcribe(input_file):
-    startTime = time.perf_counter()
     segments, info = model.transcribe(input_file, word_timestamps=True)
     print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
-    elapsed = time.perf_counter() - startTime
-    print(f"Debugging: Transcription with {model_size} model took {elapsed} seconds")
     return segments
 
 def findSlicePoints(segments, keyword):
@@ -69,7 +68,9 @@ def findSlicePoints(segments, keyword):
     keywordStripped = keyword.lower().strip(EXCLUDED_CHARACTERS)
     print(f'Debugging: The stripped keyword string is {keywordStripped}')
     writeCondition = False
+    clip_ongoing = True #---------------------------TO IMPLEMENT: HANDLE CASE WHERE "START" IS SAID TWICE... WAIT UNTIL END IS SAID TO APPEND BOTH TIME STAMPS
     nonKeywords = 0
+    start_time = time.perf_counter()
     for segment in segments:
         for word in segment.words:
             wordObjectStringStripped = word.word.lstrip().lower().strip(EXCLUDED_CHARACTERS)
@@ -78,15 +79,15 @@ def findSlicePoints(segments, keyword):
             if wordObjectStringStripped == keywordStripped: # if the current word is equal to the keyword, writeCondition is True to prime appending timestamps
                 writeCondition = True
                 nonKeywords = 0
-                print("Debugging: Keyword identified")
-            elif writeCondition == True and wordObjectStringStripped == "start": # case for appending start of timestamp
-                print("Debugging: Appending start timestamp")
+                print(f"Debugging: Keyword identified at {word.start}s")
+            elif writeCondition == True and wordObjectStringStripped == "start" or wordObjectStringStripped in START_PHONETIC_SIMILARITIES: # case for appending start of timestamp
+                print(f"Debugging: Appending start timestamp {word.start}s")
                 start_points.append(word.start + CLIP_START_BUFFER)
                 writeCondition = False
                 nonKeywords = 0
-            elif writeCondition == True and wordObjectStringStripped == "end": # case for appending end of timestamp
-                print("Debugging: Appending end timestamp")
-                end_points.append(word.end - CLIP_END_BUFFER)
+            elif writeCondition == True and wordObjectStringStripped == "end" or wordObjectStringStripped in END_PHONETIC_SIMILARITIES: # case for appending end of timestamp
+                print(f"Debugging: Appending end timestamp {word.start}s")
+                end_points.append(word.start - CLIP_END_BUFFER)
                 writeCondition = False
                 nonKeywords = 0
             elif writeCondition == True: # case to handle user unintentionally saying the keyword
@@ -95,8 +96,11 @@ def findSlicePoints(segments, keyword):
                     print("Debugging: Buffer exceeded, deactivating writeCondition")
                     writeCondition = False
                     nonKeywords = 0
-
-    print(start_points, "\n", end_points)
+    time_elapsed = time.perf_counter() - start_time
+    print(f"Debugging: Speech recognition took {time_elapsed} seconds")
+    print("Debugging: Timestamps are:")
+    for s, e in zip(start_points, end_points):
+        print(f"{s} - {e}")
     return start_points, end_points
 
 def sliceVideo(input_file, start_points, end_points):
