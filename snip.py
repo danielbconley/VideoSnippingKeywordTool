@@ -5,6 +5,10 @@ import os
 import sys
 import time
 
+#  TO BE IMPLEMENTED:
+# -swap debugging print statements for logging
+# -handle case where "start" is said twice
+
 #------------CONFIGURATION-------------#
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 EXCLUDED_CHARACTERS = ",.!?'" # characters excluded from stripped strings
@@ -13,7 +17,7 @@ CLIP_START_BUFFER = 1 # used as a buffer to avoid including the keyword in video
 CLIP_END_BUFFER = 2 # used as a buffer to avoid including the keyword in video playback
 MEDIA_EXTENSIONS = (".mp4", ".mov", ".m4a", ".mp3", ".mkv") # file types shown in the file selection menu
 START_PHONETIC_SIMILARITIES = {"sart", "shart", "stark", "star"} # set to handle transcription innacuracies for start
-END_PHONETIC_SIMILARITIES = {"in", "n", "en"} # set to handle transcription innacuracies for end
+END_PHONETIC_SIMILARITIES = {"in", "n", "en", "and"} # set to handle transcription innacuracies for end
 model_size = "small" # select model size - note: larger models are slower but more accurate
 model = WhisperModel(model_size, device="cpu", compute_type="int8") # select whether to use cpu or gpu for processing
 #--------------------------------------#
