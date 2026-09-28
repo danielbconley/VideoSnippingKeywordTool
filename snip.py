@@ -80,13 +80,17 @@ def findSlicePoints(segments, keyword):
                 writeCondition = True
                 nonKeywords = 0
                 print(f"Debugging: Keyword identified at {word.start}s")
-            elif writeCondition == True and wordObjectStringStripped == "start" or wordObjectStringStripped in START_PHONETIC_SIMILARITIES: # case for appending start of timestamp
+            elif writeCondition == True and (wordObjectStringStripped == "start" or wordObjectStringStripped in START_PHONETIC_SIMILARITIES): # case for appending start of timestamp
                 print(f"Debugging: Appending start timestamp {word.start}s")
+                if wordObjectStringStripped in START_PHONETIC_SIMILARITIES:
+                    print(f"Debugging: Phonetic similarity {wordObjectStringStripped} identified")
                 start_points.append(word.start + CLIP_START_BUFFER)
                 writeCondition = False
                 nonKeywords = 0
-            elif writeCondition == True and wordObjectStringStripped == "end" or wordObjectStringStripped in END_PHONETIC_SIMILARITIES: # case for appending end of timestamp
+            elif writeCondition == True and (wordObjectStringStripped == "end" or wordObjectStringStripped in END_PHONETIC_SIMILARITIES): # case for appending end of timestamp
                 print(f"Debugging: Appending end timestamp {word.start}s")
+                if wordObjectStringStripped in END_PHONETIC_SIMILARITIES:
+                    print(f"Debugging: Phonetic similarity {wordObjectStringStripped} identified")
                 end_points.append(word.start - CLIP_END_BUFFER)
                 writeCondition = False
                 nonKeywords = 0
