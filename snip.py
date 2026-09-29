@@ -4,6 +4,7 @@ import imageio_ffmpeg
 import os
 import sys
 import time
+from contextlib import contextmanager
 
 #  TO BE IMPLEMENTED:
 # -swap debugging print statements for logging - STATUS: UNIMPLEMENTED
@@ -27,9 +28,10 @@ def main():
     keyword = keywordSelect()
     input_file = fileSelect()
 
-    segments = transcribe(input_file)
-    start_points, end_points = findSlicePoints(segments, keyword)
-    sliceVideo(input_file, start_points, end_points)
+    with timer("Speech recognition"):   
+        segments = transcribe(input_file)
+        start_points, end_points = findSlicePoints(segments, keyword)
+        sliceVideo(input_file, start_points, end_points)
 
 def keywordSelect():
     selection = 2
@@ -75,7 +77,6 @@ def findSlicePoints(segments, keyword):
     writeCondition = False
     clip_ongoing = False
     nonKeywords = 0
-    start_time = time.perf_counter()
 
     for segment in segments:
         for word in segment.words:
@@ -122,8 +123,6 @@ def findSlicePoints(segments, keyword):
                     writeCondition = False
                     nonKeywords = 0
 
-    time_elapsed = time.perf_counter() - start_time
-    print(f"Debugging: Speech recognition took {time_elapsed} seconds")
     print("Debugging: Timestamps are:")
     for s, e in zip(start_points, end_points):
         print(f"{s} - {e}")
@@ -157,6 +156,15 @@ def cut_clip(input_file, start, end, output_file, exact=False):
 
 def concatenate_clips():
     pass
+
+@contextmanager
+def timer(label):
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        elapsed = time.perf_counter - start
+        print(f'Debugging: {label} took {elapsed:.2f} seconds')
 
 if __name__ == "__main__":
     main()
