@@ -6,8 +6,9 @@ import sys
 import time
 
 #  TO BE IMPLEMENTED:
-# -swap debugging print statements for logging
-# -handle case where "start" is said twice
+# -swap debugging print statements for logging - STATUS: UNIMPLEMENTED
+# -handle case where "start" is said twice. when clip start is said a second time, its ignored - STATUS: IMPLEMENTED, BEHAVIOR NOT VERIFIED.
+# -handle case where string has - in front of word STATUS: UNIMPLEMENTED
 
 #------------CONFIGURATION-------------#
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
@@ -72,9 +73,10 @@ def findSlicePoints(segments, keyword):
     keywordStripped = keyword.lower().strip(EXCLUDED_CHARACTERS)
     print(f'Debugging: The stripped keyword string is {keywordStripped}')
     writeCondition = False
-    clip_ongoing = True #---------------------------TO IMPLEMENT: HANDLE CASE WHERE "START" IS SAID TWICE... WAIT UNTIL END IS SAID TO APPEND BOTH TIME STAMPS
+    clip_ongoing = False
     nonKeywords = 0
     start_time = time.perf_counter()
+
     for segment in segments:
         for word in segment.words:
             wordObjectStringStripped = word.word.lstrip().lower().strip(EXCLUDED_CHARACTERS)
@@ -83,27 +85,43 @@ def findSlicePoints(segments, keyword):
             if wordObjectStringStripped == keywordStripped: # if the current word is equal to the keyword, writeCondition is True to prime appending timestamps
                 writeCondition = True
                 nonKeywords = 0
-                print(f"Debugging: Keyword identified at {word.start}s")
-            elif writeCondition == True and (wordObjectStringStripped == "start" or wordObjectStringStripped in START_PHONETIC_SIMILARITIES): # case for appending start of timestamp
-                print(f"Debugging: Appending start timestamp {word.start}s")
+                print(f"Debugging: Keyword identified at {word.start:.2f}s")
+
+            elif clip_ongoing == True and writeCondition == True and (wordObjectStringStripped == "start" or wordObjectStringStripped in START_PHONETIC_SIMILARITIES):
+                # case to handle "start" being said twice
+                writeCondition = False
+
+            elif clip_ongoing == False and writeCondition == True and (wordObjectStringStripped == "end" or wordObjectStringStripped in END_PHONETIC_SIMILARITIES):
+                # case to handle "end" being said twice
+                writeCondition = False
+
+            elif clip_ongoing == False and writeCondition == True and (wordObjectStringStripped == "start" or wordObjectStringStripped in START_PHONETIC_SIMILARITIES): 
+                # case for appending start of timestamp
+                print(f"Debugging: Appending start timestamp {word.start:.2f}.s")
                 if wordObjectStringStripped in START_PHONETIC_SIMILARITIES:
                     print(f"Debugging: Phonetic similarity {wordObjectStringStripped} identified")
                 start_points.append(word.start + CLIP_START_BUFFER)
                 writeCondition = False
                 nonKeywords = 0
-            elif writeCondition == True and (wordObjectStringStripped == "end" or wordObjectStringStripped in END_PHONETIC_SIMILARITIES): # case for appending end of timestamp
+                clip_ongoing = True
+
+            elif clip_ongoing == True and writeCondition == True and (wordObjectStringStripped == "end" or wordObjectStringStripped in END_PHONETIC_SIMILARITIES): 
+                # case for appending end of timestamp
                 print(f"Debugging: Appending end timestamp {word.start}s")
                 if wordObjectStringStripped in END_PHONETIC_SIMILARITIES:
                     print(f"Debugging: Phonetic similarity {wordObjectStringStripped} identified")
                 end_points.append(word.start - CLIP_END_BUFFER)
                 writeCondition = False
                 nonKeywords = 0
+                clip_ongoing = False
+
             elif writeCondition == True: # case to handle user unintentionally saying the keyword
                 nonKeywords += 1
                 if nonKeywords >= CHATTER_BUFFER: # if the amount of words after the keyword exceed or are equal to the buffer, the writeCondition is set back to False
                     print("Debugging: Buffer exceeded, deactivating writeCondition")
                     writeCondition = False
                     nonKeywords = 0
+
     time_elapsed = time.perf_counter() - start_time
     print(f"Debugging: Speech recognition took {time_elapsed} seconds")
     print("Debugging: Timestamps are:")
